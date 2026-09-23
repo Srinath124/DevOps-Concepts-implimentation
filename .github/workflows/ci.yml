@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - master
+
   pull_request:
     branches:
       - main
@@ -39,15 +40,24 @@ jobs:
           cache: maven
 
       - name: Verify Java
-        run: java -version
+        run: |
+          java -version
+          mvn -version
 
       - name: Run backend tests
-        run: mvn -B clean test
+        run: |
+          mvn -B clean test
 
       - name: Package backend
-        run: mvn -B package -DskipTests
+        run: |
+          mvn -B package -DskipTests
 
-      - name: Upload JAR
+      - name: Verify JAR
+        run: |
+          test -n "$(find target -maxdepth 1 -name '*.jar' -print -quit)"
+          echo "Backend JAR created successfully."
+
+      - name: Upload backend artifact
         uses: actions/upload-artifact@v4
         with:
           name: task-manager-api
@@ -76,16 +86,20 @@ jobs:
 
       - name: Validate HTML
         run: |
-          grep -q "<html" frontend/public/index.html
-          grep -q "</html>" frontend/public/index.html
+          grep -qi "<html" frontend/public/index.html
+          grep -qi "</html>" frontend/public/index.html
 
       - name: Validate JavaScript syntax
         run: |
           node --check frontend/public/app.js
 
-      - name: Validate CSS exists
+      - name: Validate CSS
         run: |
           test -s frontend/public/styles.css
+
+      - name: Validate Nginx configuration file
+        run: |
+          test -s frontend/nginx.conf
 
 
   # ==========================================================
@@ -100,7 +114,7 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Build API image
+      - name: Build API Docker image
         run: |
           docker build \
             --tag "${{ env.API_IMAGE }}" \
@@ -109,6 +123,10 @@ jobs:
       - name: Verify API image
         run: |
           docker image inspect "${{ env.API_IMAGE }}"
+
+      - name: Show API image
+        run: |
+          docker images "${{ env.API_IMAGE }}"
 
 
   # ==========================================================
@@ -123,7 +141,7 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Build frontend image
+      - name: Build frontend Docker image
         run: |
           docker build \
             --tag "${{ env.FRONTEND_IMAGE }}" \
@@ -133,11 +151,29 @@ jobs:
         run: |
           docker image inspect "${{ env.FRONTEND_IMAGE }}"
 
+      - name: Show frontend image
+        run: |
+          docker images "${{ env.FRONTEND_IMAGE }}"
+
 
   # ==========================================================
-  # 5. SECURITY SCAN - API
+  # 5. TRIVY API SECURITY SCAN
   # ==========================================================
   api-security:
+    name: Trivy API Scan
+    runs-on: ubuntu-latest
+    needs: api-image
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Build API image for scanning
+        run: |
+          docker build \
+            --tag "${{ env.API_IMAGE }}" \
+            .
+
       - name: Trivy API image scan
         uses: aquasecurity/trivy-action@0.36.0
         with:
@@ -151,9 +187,23 @@ jobs:
 
 
   # ==========================================================
-  # 6. SECURITY SCAN - FRONTEND
+  # 6. TRIVY FRONTEND SECURITY SCAN
   # ==========================================================
   frontend-security:
+    name: Trivy Frontend Scan
+    runs-on: ubuntu-latest
+    needs: frontend-image
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Build frontend image for scanning
+        run: |
+          docker build \
+            --tag "${{ env.FRONTEND_IMAGE }}" \
+            ./frontend
+
       - name: Trivy frontend image scan
         uses: aquasecurity/trivy-action@0.36.0
         with:
@@ -165,7 +215,8 @@ jobs:
           exit-code: "1"
           timeout: 10m
 
-    # ==========================================================
+
+  # ==========================================================
   # 7. KUBERNETES VALIDATION
   # ==========================================================
   kubernetes:
@@ -208,7 +259,9 @@ jobs:
             -strict
             -summary
             prod-rendered.yaml
-    # ==========================================================
+
+
+  # ==========================================================
   # 8. HELM VALIDATION
   # ==========================================================
   helm:
@@ -244,7 +297,8 @@ jobs:
             -summary
             helm-rendered.yaml
 
-    # ==========================================================
+
+  # ==========================================================
   # 9. DOCKER COMPOSE VALIDATION
   # ==========================================================
   compose:
@@ -271,7 +325,7 @@ jobs:
 
 
   # ==========================================================
-  # 10. CI SUCCESS
+  # 10. FINAL CI GATE
   # ==========================================================
   ci-success:
     name: CI Passed
@@ -288,6 +342,8 @@ jobs:
       - helm
       - compose
 
+    if: ${{ success() }}
+
     steps:
       - name: CI summary
         run: |
@@ -296,13 +352,17 @@ jobs:
           echo "=========================================="
           echo ""
           echo "Backend tests       : PASSED"
+          echo "Backend package     : PASSED"
           echo "Frontend validation : PASSED"
           echo "API Docker build    : PASSED"
           echo "Frontend build      : PASSED"
-          echo "API security scan   : PASSED"
-          echo "Frontend scan       : PASSED"
+          echo "API Trivy scan      : PASSED"
+          echo "Frontend Trivy      : PASSED"
           echo "Kubernetes          : PASSED"
           echo "Helm                : PASSED"
           echo "Docker Compose      : PASSED"
+          echo ""
+          echo "Commit:"
+          echo "${{ github.sha }}"
           echo ""
           echo "=========================================="
