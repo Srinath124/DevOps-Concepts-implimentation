@@ -192,7 +192,7 @@ jobs:
           timeout: 10m
 
 
-  # ==========================================================
+    # ==========================================================
   # 7. KUBERNETES VALIDATION
   # ==========================================================
   kubernetes:
@@ -211,29 +211,31 @@ jobs:
         with:
           version: v1.31.0
 
-      - name: Render Kubernetes manifests
+      - name: Render base Kustomize
         run: |
-          kubectl kustomize k8s/ > /tmp/k8s-rendered.yaml
+          kubectl kustomize k8s/ > k8s-rendered.yaml
 
-      - name: Validate Kubernetes manifests
-        run: |
-          kubectl apply \
-            --dry-run=client \
-            -f /tmp/k8s-rendered.yaml
+      - name: Validate base Kubernetes manifests
+        uses: docker://ghcr.io/yannh/kubeconform:latest
+        with:
+          args: >
+            -strict
+            -summary
+            k8s-rendered.yaml
 
-      - name: Render production overlay
+      - name: Render production Kustomize
         run: |
           kubectl kustomize kustomize/overlays/prod \
-            > /tmp/prod-rendered.yaml
+            > prod-rendered.yaml
 
-      - name: Validate production manifests
-        run: |
-          kubectl apply \
-            --dry-run=client \
-            -f /tmp/prod-rendered.yaml
-
-
-  # ==========================================================
+      - name: Validate production Kubernetes manifests
+        uses: docker://ghcr.io/yannh/kubeconform:latest
+        with:
+          args: >
+            -strict
+            -summary
+            prod-rendered.yaml
+    # ==========================================================
   # 8. HELM VALIDATION
   # ==========================================================
   helm:
@@ -259,19 +261,15 @@ jobs:
           helm template \
             task-manager \
             helm/task-manager \
-            > /tmp/task-manager-rendered.yaml
+            > helm-rendered.yaml
 
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
+      - name: Validate Helm manifests
+        uses: docker://ghcr.io/yannh/kubeconform:latest
         with:
-          version: v1.31.0
-
-      - name: Validate rendered Helm manifests
-        run: |
-          kubectl apply \
-            --dry-run=client \
-            -f /tmp/task-manager-rendered.yaml
-
+          args: >
+            -strict
+            -summary
+            helm-rendered.yaml
 
   # ==========================================================
   # 9. DOCKER COMPOSE VALIDATION
