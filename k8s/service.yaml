@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: Service
+metadata: { name: task-manager-api }
+spec:
+  selector: { app: task-manager-api }
+  ports: [{ port: 80, targetPort: 8080 }]

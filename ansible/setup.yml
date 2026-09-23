@@ -1,0 +1,31 @@
+---
+- name: Prepare a Linux host for the Task Manager demo
+  hosts: task_manager_hosts
+  become: true
+  gather_facts: true
+  vars:
+    task_manager_deploy_dir: /opt/task-manager
+  tasks:
+    - name: Verify Docker is available without installing it
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+      failed_when: false
+    - name: Report Docker status
+      ansible.builtin.debug:
+        msg: "Docker check: {{ docker_version.stdout | default('not installed') }}"
+    - name: Create the deployment directory
+      ansible.builtin.file:
+        path: "{{ task_manager_deploy_dir }}"
+        state: directory
+        mode: "0755"
+    - name: Copy the Compose deployment definition
+      ansible.builtin.copy:
+        src: ../docker-compose.yml
+        dest: "{{ task_manager_deploy_dir }}/docker-compose.yml"
+        mode: "0644"
+    - name: Copy Prometheus and Grafana configuration
+      ansible.builtin.copy:
+        src: ../monitoring/
+        dest: "{{ task_manager_deploy_dir }}/monitoring/"
+        mode: preserve

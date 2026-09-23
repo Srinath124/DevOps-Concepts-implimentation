@@ -1,0 +1,51 @@
+name: GitOps CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy-production:
+    # A workflow_run only reaches this job after the CI workflow succeeded.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Check out the reviewed configuration
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.31.0
+
+      - name: Configure cluster access from GitHub Secret
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
+        run: |
+          test -n "$KUBECONFIG_DATA"
+          mkdir -p "$RUNNER_TEMP/kube"
+          echo "$KUBECONFIG_DATA" | base64 --decode > "$RUNNER_TEMP/kube/config"
+          chmod 600 "$RUNNER_TEMP/kube/config"
+
+      - name: Apply the Git-managed production configuration
+        env:
+          KUBECONFIG: ${{ runner.temp }}/kube/config
+        run: |
+          kubectl apply -k kustomize/overlays/prod
+          kubectl rollout status deployment/task-manager-api --namespace task-manager-prod --timeout=180s
+          kubectl get pods,svc,ingress,hpa --namespace task-manager-prod

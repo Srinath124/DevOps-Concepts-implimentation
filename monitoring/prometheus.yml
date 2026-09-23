@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 15s
+scrape_configs:
+  - job_name: task-manager-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["task-manager-api:8080"]

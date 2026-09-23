@@ -1,0 +1,9 @@
+image: { repository: task-manager-api, tag: latest, pullPolicy: IfNotPresent }
+replicaCount: 2
+service: { port: 80 }
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { cpu: 500m, memory: 512Mi }
+autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 5, targetCPUUtilizationPercentage: 70 }
+database: { host: postgres, port: "5432", name: taskmanager, username: taskuser, password: change-me }
+ingress: { enabled: true, className: nginx }

@@ -1,0 +1,8 @@
+resources: [../../base, namespace.yaml]
+namespace: task-manager-dev
+patches:
+  - target: { kind: Deployment, name: task-manager-api }
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
