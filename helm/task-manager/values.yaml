@@ -1,4 +1,7 @@
 image: { repository: task-manager-api, tag: latest, pullPolicy: IfNotPresent }
+frontend:
+  image: { repository: task-manager-frontend, tag: latest, pullPolicy: IfNotPresent }
+  replicaCount: 2
 replicaCount: 2
 service: { port: 80 }
 resources:

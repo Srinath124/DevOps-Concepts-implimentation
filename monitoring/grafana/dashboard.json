@@ -5,6 +5,9 @@
     {"title":"Request count", "type":"stat", "targets":[{"expr":"sum(http_server_requests_seconds_count)"}]},
     {"title":"95th response time", "type":"timeseries", "targets":[{"expr":"histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le))"}]},
     {"title":"Error rate", "type":"timeseries", "targets":[{"expr":"sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count[5m]))"}]},
-    {"title":"JVM memory", "type":"timeseries", "targets":[{"expr":"sum(jvm_memory_used_bytes) by (area)"}]}
+    {"title":"JVM memory", "type":"timeseries", "targets":[{"expr":"sum(jvm_memory_used_bytes) by (area)"}]},
+    {"title":"CPU", "type":"timeseries", "targets":[{"expr":"sum(process_cpu_usage)"}]},
+    {"title":"API pod count", "type":"stat", "targets":[{"expr":"count(up{job=\"task-manager-api\"} == 1)"}]},
+    {"title":"Application health", "type":"stat", "targets":[{"expr":"up{job=\"task-manager-api\"}"}]}
   ]
 }

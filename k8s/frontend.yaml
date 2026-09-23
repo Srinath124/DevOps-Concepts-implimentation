@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: task-manager-frontend }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: task-manager-frontend } }
+  template:
+    metadata: { labels: { app: task-manager-frontend } }
+    spec:
+      containers:
+        - name: frontend
+          image: task-manager-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8080 }]
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { cpu: 200m, memory: 128Mi }
+          readinessProbe: { httpGet: { path: /, port: 8080 }, initialDelaySeconds: 3, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /, port: 8080 }, initialDelaySeconds: 10, periodSeconds: 15 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: task-manager-frontend }
+spec:
+  selector: { app: task-manager-frontend }
+  ports: [{ port: 80, targetPort: 8080 }]

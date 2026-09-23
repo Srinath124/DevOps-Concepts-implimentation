@@ -20,6 +20,7 @@ echo "===== DOCKER ====="
 docker --version
 docker build -t task-manager:latest .
 docker tag task-manager:latest task-manager-api:latest
+docker build -t task-manager-frontend:latest frontend
 
 echo
 echo "===== MINIKUBE ====="
@@ -34,6 +35,7 @@ echo "Minikube IP: $MINIKUBE_IP"
 echo
 echo "===== LOAD APPLICATION IMAGE ====="
 minikube image load task-manager-api:latest
+minikube image load task-manager-frontend:latest
 
 echo
 echo "===== KUBERNETES APPLICATION ====="
@@ -71,6 +73,7 @@ echo
 echo "===== APPLICATION ====="
 curl -i "http://${MINIKUBE_IP}/api/tasks"
 curl -i "http://${MINIKUBE_IP}/health"
+curl -I "http://${MINIKUBE_IP}/"
 
 echo
 echo "===== HELM ====="

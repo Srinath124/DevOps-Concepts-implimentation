@@ -1,12 +1,12 @@
-# Task Manager API
+# Task Manager
 
-A deliberately small Java 21/Spring Boot REST API that demonstrates a practical DevOps delivery path. It stores tasks in PostgreSQL and exposes Prometheus metrics.
+A usable task-management application with a monochrome, technical web interface, a Java 21/Spring Boot REST API, and durable PostgreSQL storage. It retains the existing DevOps delivery, monitoring, and Kubernetes setup.
 
 ## Architecture and delivery flow
 
 ```
-Client -> Kubernetes Ingress -> Task Manager API -> PostgreSQL
-             /api, /health
+Browser -> Nginx frontend -> Task Manager API -> PostgreSQL PVC
+            /             /api, /health
 
 Developer -> GitHub -> Pull Request -> GitHub Actions -> Tests
   -> Docker Build -> Trivy Scan -> Container Image -> Kubernetes
@@ -14,7 +14,7 @@ Developer -> GitHub -> Pull Request -> GitHub Actions -> Tests
 
 Task Manager API -> Actuator -> Prometheus -> Grafana
 
-Local: Docker Compose -> API + PostgreSQL + Prometheus + Grafana
+Local: Docker Compose -> Nginx frontend + API + PostgreSQL + Prometheus + Grafana
 ```
 
 The full file map is in [structure.md](structure.md). Git is the source of truth for both source code and Kubernetes configuration: that GitOps principle means a reviewed Git change is the auditable desired deployment state. This project demonstrates the concept without adding an Argo CD or Flux controller.
@@ -24,16 +24,22 @@ The full file map is in [structure.md](structure.md). Git is the source of truth
 | Tool | What / why / where |
 |---|---|
 | Spring Boot, JPA, PostgreSQL | Small REST API and durable task data; `src/`. |
-| Docker / Compose | Reproducible non-root image and two-container local environment. |
+| Docker / Compose | Reproducible API, Nginx frontend, and PostgreSQL local environment. |
 | GitHub Actions + Trivy | Builds, tests, images, and scans high/critical image issues in `.github/workflows/ci.yml`. |
 | Kubernetes | Runs and exposes replicas with probes, resources, ingress, and HPA in `k8s/`. |
 | Helm / Kustomize | Parameterized chart and small dev/prod deployment differences. |
 | Terraform / Ansible | Demonstrate local Docker infrastructure and safe host inspection. |
 | Prometheus / Grafana | Scrape metrics and visualize request/JVM health. |
 
+## Web application
+
+The frontend is an Nginx-served, responsive single-page application. It provides create, read, edit, delete, completion toggles, search across titles/descriptions, All/Active/Completed filters, sorting, refresh, dashboard statistics, API/database status, loading states, and plain-language failure messages. Its monochrome interface uses thin rules, dot-grid texture, technical labels, and restrained red only for destructive/error states.
+
+Nginx serves the UI and proxies `/api`, `/health`, and `/actuator` to Spring Boot. This keeps browser/API communication same-origin and avoids storing task data in browser storage.
+
 ## API
 
-`GET /api/tasks`, `GET /api/tasks/{id}`, `POST /api/tasks`, `PUT /api/tasks/{id}`, `DELETE /api/tasks/{id}`, and `GET /health`.
+`GET /api/tasks`, `GET /api/tasks/{id}`, `POST /api/tasks`, `PUT /api/tasks/{id}`, `DELETE /api/tasks/{id}`, `GET /api/system/status`, and `GET /health`.
 
 Actuator endpoints: `GET /actuator/health` and `GET /actuator/prometheus`.
 
@@ -62,13 +68,14 @@ docker ps && docker compose ps
 docker compose logs -f task-manager-api
 ```
 
-For the complete local stack (API, PostgreSQL, Prometheus at `:9090`, and Grafana at `:3000`), set local passwords first. Docker Compose deliberately refuses to start until both are provided:
+For the complete local stack (frontend at `:8081`, API at `:8080`, PostgreSQL, Prometheus at `:9090`, and Grafana at `:3000`), set local passwords first. Docker Compose deliberately refuses to start until both are provided:
 
 ```bash
 export DB_PASSWORD='choose-a-local-password'
 export GRAFANA_PASSWORD='choose-a-grafana-password'
 docker compose up --build -d
 curl localhost:8080/health
+xdg-open http://localhost:8081 # Task Manager web UI
 docker compose logs -f task-manager-api
 docker compose down
 ```
@@ -110,17 +117,38 @@ minikube start
 minikube addons enable ingress
 eval $(minikube docker-env)
 docker build -t task-manager-api:latest .
+docker build -t task-manager-frontend:latest frontend
 kubectl create namespace task-manager-dev
-kubectl apply -n task-manager-dev -f k8s/
+kubectl apply -n task-manager-dev -k k8s/
 kubectl get pods,svc,ingress,hpa -n task-manager-dev
 kubectl scale deployment/task-manager-api -n task-manager-dev --replicas=3
 kubectl get hpa -n task-manager-dev
 kubectl get pods -n task-manager-dev
 ```
 
-The Deployment starts two replicas; readiness and liveness use Spring Boot health probes. CPU requests allow the HPA to scale from 2 to 5 when Metrics Server is available. The Service selects every matching ready replica, distributing traffic between them. Ingress routes `/api` and `/health`. `k8s/postgres.yaml` is a small PVC-backed PostgreSQL demo dependency; replace it with a managed, backed-up database for production.
+The API Deployment starts two replicas; readiness and liveness use Spring Boot health probes. The frontend is a separate two-replica Nginx Deployment that serves the interface and proxies API requests to the Kubernetes Service. CPU requests allow the API HPA to scale from 2 to 5 when Metrics Server is available. Ingress routes `/` to the frontend and `/api` and `/health` to the API. `k8s/postgres.yaml` is a small PVC-backed PostgreSQL demo dependency; replace it with a managed, backed-up database for production.
 
-Helm renders the API with image, replica count, port, resources, and autoscaling values:
+### Durable-data verification procedure
+
+This procedure is intentionally documented as a procedure, not a claimed test result. Run it in a disposable Minikube environment after deployment:
+
+```bash
+MINIKUBE_IP=$(minikube ip)
+curl -X POST "http://$MINIKUBE_IP/api/tasks" -H 'Content-Type: application/json' -d '{"title":"durability check","completed":false}'
+curl "http://$MINIKUBE_IP/api/tasks"
+kubectl rollout restart deployment/task-manager-api -n task-manager-dev
+kubectl rollout status deployment/task-manager-api -n task-manager-dev
+curl "http://$MINIKUBE_IP/api/tasks" # task must remain
+kubectl delete pod -n task-manager-dev -l app=postgres
+kubectl wait --for=condition=ready pod -n task-manager-dev -l app=postgres --timeout=180s
+curl "http://$MINIKUBE_IP/api/tasks" # task must remain; PVC is reused
+minikube stop && minikube start
+curl "http://$(minikube ip)/api/tasks" # task must remain
+```
+
+The frontend never stores tasks in browser storage. Every create, edit, completion toggle, delete, refresh, and startup load calls the API; PostgreSQL and its Compose volume/Kubernetes PVC remain the source of truth.
+
+Helm renders the API and frontend with image, replica count, port, resources, ingress, and API autoscaling values:
 
 ```bash
 helm lint helm/task-manager
@@ -155,7 +183,7 @@ Terraform provisions infrastructure resources (the local Docker network, volume,
 
 ## Monitoring, logging, and SRE
 
-Actuator exposes `/actuator/prometheus`, including HTTP request and JVM metrics; `/actuator/health` provides health. Prometheus scrapes the Compose service using `monitoring/prometheus.yml`. Grafana is automatically provisioned with Prometheus and the dashboard, which shows request rate, request count, p95 latency, error rate, and JVM memory.
+Actuator exposes `/actuator/prometheus`, including HTTP request and JVM metrics; `/actuator/health` provides health. Prometheus scrapes the Compose service using `monitoring/prometheus.yml`. Grafana is automatically provisioned with Prometheus and a dashboard containing request rate, request count, p95 latency, error rate, JVM memory, CPU, API pod count, and application health.
 
 ## Logging
 
@@ -181,9 +209,16 @@ kubectl get endpoints -n task-manager-dev
 | `CrashLoopBackOff` | `kubectl describe pod POD`, `kubectl logs POD` | Bad startup configuration or a missing database. Correct the ConfigMap/Secret and redeploy. |
 | `ImagePullBackOff` | `kubectl describe pod POD` | Incorrect image/tag or unavailable registry. Check the image reference, or build it with `eval $(minikube docker-env)`. |
 | Readiness probe failure | `kubectl logs POD`; `curl /actuator/health/readiness` from a port-forward | The API is not ready, often because PostgreSQL is unavailable. Check `DB_*` values and `kubectl get pods` for PostgreSQL. |
-| Service not reachable | `kubectl get svc,ingress,endpoints`; `kubectl describe ingress task-manager-api` | Selector, target port, endpoint, or ingress-controller issue. Verify labels, port `80 -> 8080`, and enable the Minikube ingress add-on. |
+| Service not reachable | `kubectl get svc,ingress,endpoints`; `kubectl describe ingress task-manager` | Selector, target port, endpoint, or ingress-controller issue. Verify labels, port `80 -> 8080`, and enable the Minikube ingress add-on. |
 | Database connection failure | `kubectl logs deployment/task-manager-api`; `kubectl logs deployment/postgres` | Invalid credentials, missing Service, or an unready database. Check `task-manager-secret`, `postgres` Service, and PVC status. |
 
 ## Validation
 
-Run `mvn test`, `mvn package`, `docker build -t task-manager-api:local .`, `docker compose config`, `kubectl apply --dry-run=client -f k8s/`, `helm lint helm/task-manager`, `kubectl kustomize kustomize/overlays/dev`, `terraform init -backend=false && terraform validate`, and `ansible-playbook --syntax-check ansible/setup.yml`.
+Verified locally on 23 September 2026:
+
+- `docker compose up --build -d`: passed; all five services started.
+- `GET /health`, frontend delivery, task create/read/update, and `/api/system/status`: passed against Compose PostgreSQL.
+- API, frontend, and PostgreSQL container restart persistence: passed; the created completed task remained readable after each restart.
+- `docker compose config`, frontend Docker build, Nginx configuration test, `node --check frontend/public/app.js`, `helm lint`, Helm template render, Kubernetes client dry-run, and `git diff --check`: passed.
+- `mvn test`: not verified as passing on this host. The Spring context starts and compiles the application, but the existing test listener fails because Mockito/Byte Buddy cannot attach a JDK agent in this environment.
+- Minikube restart durability, Terraform, Ansible, Trivy, and live Grafana/Prometheus behavior: not verified in this run.

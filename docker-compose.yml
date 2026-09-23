@@ -24,6 +24,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+  frontend:
+    build: ./frontend
+    ports: ["8081:8080"]
+    depends_on:
+      task-manager-api:
+        condition: service_started
   prometheus:
     image: prom/prometheus:v3.2.1
     ports: ["9090:9090"]

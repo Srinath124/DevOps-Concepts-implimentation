@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <title>Task Manager</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="noise"></div>
+  <main class="app-shell">
+    <aside class="sidebar" aria-label="Task navigation">
+      <a class="brand" href="#dashboard"><span class="brand-dot">●</span><span>TASK<br>MANAGER</span></a>
+      <nav class="nav" aria-label="Primary">
+        <button class="nav-link active" data-view="dashboard"><span>01</span> Dashboard</button>
+        <button class="nav-link" data-view="all"><span>02</span> All Tasks</button>
+        <button class="nav-link" data-view="active"><span>03</span> Active</button>
+        <button class="nav-link" data-view="completed"><span>04</span> Completed</button>
+      </nav>
+      <section class="system-status" aria-label="System status">
+        <p class="eyebrow">System status</p>
+        <p><i id="api-indicator"></i>API <b id="api-status">CHECKING</b></p>
+        <p><i id="db-indicator"></i>DATABASE <b id="db-status">CHECKING</b></p>
+      </section>
+    </aside>
+    <section class="workspace">
+      <header class="topbar">
+        <div><p class="eyebrow" id="view-kicker">Overview / 01</p><h1 id="page-title">Dashboard</h1></div>
+        <button class="new-task" id="new-task" type="button">+ New task</button>
+      </header>
+      <div id="connection-alert" class="connection-alert hidden" role="alert"></div>
+      <section id="dashboard-view" class="view">
+        <div class="metrics" aria-label="Task statistics">
+          <article><span>Total tasks</span><strong id="total-count">—</strong></article>
+          <article><span>Active</span><strong id="active-count">—</strong></article>
+          <article><span>Completed</span><strong id="completed-count">—</strong></article>
+          <article><span>Completion rate</span><strong id="rate-count">—</strong></article>
+        </div>
+        <div class="panel recent-panel"><div class="panel-heading"><div><p class="eyebrow">Latest signal</p><h2>Recent tasks</h2></div><button class="text-button" data-open-view="all">View all →</button></div><div id="recent-tasks" class="task-list compact"></div></div>
+      </section>
+      <section id="tasks-view" class="view hidden">
+        <div class="controls">
+          <label class="search"><span>⌕</span><input id="search-input" type="search" placeholder="Search tasks" autocomplete="off" /></label>
+          <div class="filter-tabs" aria-label="Task state filters"><button data-filter="all" class="selected">All</button><button data-filter="active">Active</button><button data-filter="completed">Completed</button></div>
+          <label class="sort-label">Sort <select id="sort-select"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="title">Title A–Z</option></select></label>
+          <button id="refresh" class="icon-button" title="Refresh tasks" aria-label="Refresh tasks">↻</button>
+        </div>
+        <div id="task-list" class="task-list panel"></div>
+      </section>
+    </section>
+  </main>
+  <dialog id="task-dialog"><form id="task-form" method="dialog"><div class="dialog-head"><p class="eyebrow" id="form-mode">New record</p><button class="close" type="button" data-close="task-dialog" aria-label="Close">×</button></div><h2 id="dialog-title">Create task</h2><input id="task-id" type="hidden" /><label>Title<input id="task-title" maxlength="255" required placeholder="What needs to happen?" /></label><label>Description<textarea id="task-description" rows="4" placeholder="Add useful detail (optional)"></textarea></label><div class="dialog-actions"><button class="secondary" type="button" data-close="task-dialog">Cancel</button><button class="new-task" id="save-task" value="default">Create</button></div></form></dialog>
+  <dialog id="delete-dialog"><form method="dialog"><p class="eyebrow">Confirm action</p><h2>Delete this task?</h2><p class="dialog-copy">This will permanently remove the task from PostgreSQL.</p><div class="dialog-actions"><button class="secondary" value="cancel">Cancel</button><button id="confirm-delete" class="danger" value="default">Delete task</button></div></form></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
