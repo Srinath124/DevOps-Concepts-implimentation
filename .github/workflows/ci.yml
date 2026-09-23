@@ -138,25 +138,12 @@ jobs:
   # 5. SECURITY SCAN - API
   # ==========================================================
   api-security:
-    name: Trivy API Scan
-    runs-on: ubuntu-latest
-    needs: api-image
-
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Build API image
-        run: |
-          docker build \
-            --tag "${{ env.API_IMAGE }}" \
-            .
-
       - name: Trivy API image scan
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: ${{ env.API_IMAGE }}
           format: table
+          vuln-type: os,library
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: "1"
@@ -167,30 +154,16 @@ jobs:
   # 6. SECURITY SCAN - FRONTEND
   # ==========================================================
   frontend-security:
-    name: Trivy Frontend Scan
-    runs-on: ubuntu-latest
-    needs: frontend-image
-
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Build frontend image
-        run: |
-          docker build \
-            --tag "${{ env.FRONTEND_IMAGE }}" \
-            ./frontend
-
       - name: Trivy frontend image scan
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: ${{ env.FRONTEND_IMAGE }}
           format: table
+          vuln-type: os,library
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: "1"
           timeout: 10m
-
 
     # ==========================================================
   # 7. KUBERNETES VALIDATION
@@ -271,7 +244,7 @@ jobs:
             -summary
             helm-rendered.yaml
 
-  # ==========================================================
+    # ==========================================================
   # 9. DOCKER COMPOSE VALIDATION
   # ==========================================================
   compose:
@@ -285,9 +258,16 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Validate Compose configuration
+      - name: Create CI environment
         run: |
-          docker compose config
+          cat > .env <<'EOF'
+          DB_PASSWORD=ci-test-password
+          GRAFANA_PASSWORD=ci-test-password
+          EOF
+
+      - name: Validate Docker Compose
+        run: |
+          docker compose config --quiet
 
 
   # ==========================================================
