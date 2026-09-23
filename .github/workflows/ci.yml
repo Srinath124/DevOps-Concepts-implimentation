@@ -26,20 +26,20 @@ jobs:
   # ==========================================================
   backend:
     name: Backend Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
           cache: maven
 
-      - name: Verify Java
+      - name: Verify Java and Maven
         run: |
           java -version
           mvn -version
@@ -58,7 +58,7 @@ jobs:
           echo "Backend JAR created successfully."
 
       - name: Upload backend artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: task-manager-api
           path: target/*.jar
@@ -70,11 +70,11 @@ jobs:
   # ==========================================================
   frontend:
     name: Frontend Validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Verify frontend files
         run: |
@@ -107,14 +107,14 @@ jobs:
   # ==========================================================
   api-image:
     name: Build API Image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: backend
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Build API Docker image
+      - name: Build API image
         run: |
           docker build \
             --tag "${{ env.API_IMAGE }}" \
@@ -124,24 +124,20 @@ jobs:
         run: |
           docker image inspect "${{ env.API_IMAGE }}"
 
-      - name: Show API image
-        run: |
-          docker images "${{ env.API_IMAGE }}"
-
 
   # ==========================================================
   # 4. BUILD FRONTEND DOCKER IMAGE
   # ==========================================================
   frontend-image:
     name: Build Frontend Image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: frontend
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Build frontend Docker image
+      - name: Build frontend image
         run: |
           docker build \
             --tag "${{ env.FRONTEND_IMAGE }}" \
@@ -151,22 +147,18 @@ jobs:
         run: |
           docker image inspect "${{ env.FRONTEND_IMAGE }}"
 
-      - name: Show frontend image
-        run: |
-          docker images "${{ env.FRONTEND_IMAGE }}"
-
 
   # ==========================================================
   # 5. TRIVY API SECURITY SCAN
   # ==========================================================
   api-security:
     name: Trivy API Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: api-image
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build API image for scanning
         run: |
@@ -175,7 +167,7 @@ jobs:
             .
 
       - name: Trivy API image scan
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: ${{ env.API_IMAGE }}
           format: table
@@ -191,12 +183,12 @@ jobs:
   # ==========================================================
   frontend-security:
     name: Trivy Frontend Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: frontend-image
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build frontend image for scanning
         run: |
@@ -205,7 +197,7 @@ jobs:
             ./frontend
 
       - name: Trivy frontend image scan
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: ${{ env.FRONTEND_IMAGE }}
           format: table
@@ -221,14 +213,14 @@ jobs:
   # ==========================================================
   kubernetes:
     name: Kubernetes Validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - backend
       - frontend
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
@@ -266,14 +258,14 @@ jobs:
   # ==========================================================
   helm:
     name: Helm Validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - backend
       - frontend
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Helm
         uses: azure/setup-helm@v4
@@ -303,14 +295,14 @@ jobs:
   # ==========================================================
   compose:
     name: Docker Compose Validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - backend
       - frontend
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Create CI environment
         run: |
@@ -329,7 +321,7 @@ jobs:
   # ==========================================================
   ci-success:
     name: CI Passed
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     needs:
       - backend
