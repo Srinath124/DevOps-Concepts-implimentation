@@ -2,56 +2,90 @@
 
 ```text
 task-manager/
-├── frontend/                            # Production Nginx-served web application
-│   ├── Dockerfile                        # Minimal Nginx image for the SPA
-│   ├── nginx.conf                        # Static UI plus /api, /health proxy routes
+├── .dockerignore                         # Docker build-context exclusions
+├── .env                                  # Local environment variables
+├── .github/
+│   ├── workflows/
+│   │   ├── ci.yml                         # CI workflow
+│   │   └── cd.yml                         # CD workflow
+│   └── modernize/java-upgrade/            # Java modernization helper hooks
+├── .gitignore                             # Git ignore rules
+├── .vscode/settings.json                  # Workspace editor settings
+├── Dockerfile                             # Spring Boot API image
+├── docker-compose.yml                     # Local multi-service stack
+├── frontend/
+│   ├── Dockerfile                         # Nginx frontend image
+│   ├── nginx.conf                         # Static serving and API proxy routes
 │   └── public/
-│       ├── index.html                    # Responsive Task Manager application shell
-│       ├── styles.css                    # Monochrome, technical visual system
-│       └── app.js                        # API-backed CRUD, filtering, status, and UI state
+│       ├── app.js                          # Frontend behavior and API calls
+│       ├── index.html                      # Application page
+│       └── styles.css                      # Frontend styles
 ├── src/
-│   ├── main/java/com/example/taskmanager/
-│   │   ├── TaskManagerApplication.java   # Spring Boot entry point
-│   │   ├── controller/
-│   │   │   ├── TaskController.java       # Task CRUD REST endpoints
-│   │   │   ├── HealthController.java     # Lightweight /health endpoint
-│   │   │   └── SystemStatusController.java # API/database status for the web UI
-│   │   ├── service/                      # CRUD business layer
-│   │   ├── repository/                   # Spring Data JPA repository
-│   │   └── entity/                       # PostgreSQL task entity
-│   ├── main/resources/application.yml    # DB, Actuator, and probe configuration
-│   └── test/                             # Spring context smoke test
-├── Dockerfile                            # Multi-stage, non-root Spring Boot API image
-├── docker-compose.yml                    # Frontend, API, PostgreSQL volume, Prometheus, Grafana
-├── README.md                             # Setup, verified validation, operations, troubleshooting
-├── SRE.md                                # SLI/SLO, recovery and failure scenarios
-├── .dockerignore / .gitignore            # Small contexts and secret protection
-├── .github/workflows/
-│   ├── ci.yml                            # Test, package, build, Trivy scan
-│   └── cd.yml                            # Approved GitOps-style production deployment
-├── k8s/
-│   ├── configmap.yaml / secret.yaml      # Database non-secret and secret settings
-│   ├── postgres.yaml                     # PostgreSQL Service and `postgres-data` PVC
-│   ├── deployment.yaml / service.yaml    # API workload and Service
-│   ├── frontend.yaml                     # Nginx frontend workload and Service
-│   ├── ingress.yaml                      # / frontend; /api and /health API routing
-│   ├── hpa.yaml                          # CPU-based API autoscaling
-│   └── kustomization.yaml                # Reusable Kubernetes resource bundle
+│   ├── main/
+│   │   ├── java/com/example/taskmanager/
+│   │   │   ├── TaskManagerApplication.java # Spring Boot entry point
+│   │   │   ├── controller/
+│   │   │   │   ├── HealthController.java
+│   │   │   │   ├── SystemStatusController.java
+│   │   │   │   └── TaskController.java
+│   │   │   ├── entity/Task.java
+│   │   │   ├── repository/TaskRepository.java
+│   │   │   └── service/TaskService.java
+│   │   └── resources/application.yml       # Application configuration
+│   └── test/java/com/example/taskmanager/
+│       └── TaskManagerApplicationTests.java # Spring context test
+├── k8s/                                   # Kubernetes manifests
+│   ├── configmap.yaml
+│   ├── deployment.yaml
+│   ├── frontend.yaml
+│   ├── hpa.yaml
+│   ├── ingress.yaml
+│   ├── kustomization.yaml
+│   ├── monitoring.yaml
+│   ├── postgres.yaml
+│   ├── secret.yaml
+│   └── service.yaml
 ├── helm/task-manager/
-│   ├── Chart.yaml / values.yaml           # Chart metadata and image/replica values
-│   └── templates/                        # API and frontend Deployments/Services plus supporting resources
+│   ├── Chart.yaml
+│   ├── values.yaml
+│   └── templates/                          # Helm resource templates
+│       ├── configmap.yaml
+│       ├── deployment.yaml
+│       ├── frontend.yaml
+│       ├── hpa.yaml
+│       ├── ingress.yaml
+│       ├── secret.yaml
+│       └── service.yaml
 ├── kustomize/
-│   ├── base/                             # Shared Kubernetes resources
-│   └── overlays/dev|prod/                # Namespace and API replica differences
-├── terraform/main.tf                     # Docker network, volume, and PostgreSQL demo IaC
-├── ansible/setup.yml                     # Safe host directory and Compose-config setup
+│   ├── base/kustomization.yaml
+│   └── overlays/
+│       ├── dev/
+│       │   ├── kustomization.yaml
+│       │   └── namespace.yaml
+│       └── prod/
+│           ├── kustomization.yaml
+│           └── namespace.yaml
 ├── monitoring/
-│   ├── prometheus.yml                    # Actuator metrics scrape configuration
+│   ├── prometheus.yml
 │   └── grafana/
-│       ├── dashboard.json                # HTTP, JVM, CPU, pod-count, and health panels
-│       └── provisioning/                 # Automatic Prometheus and dashboard setup
-└── verify-devops.sh                      # Optional full local/Minikube verification helper
+│       ├── dashboard.json
+│       └── provisioning/
+│           ├── dashboards/dashboard.yaml
+│           └── datasources/prometheus.yaml
+├── ansible/
+│   ├── inventory.ini
+│   └── setup.yml
+├── terraform/main.tf                      # Docker infrastructure IaC
+├── pom.xml                                # Maven configuration
+├── README.md                              # Project documentation
+├── SRE.md                                 # SRE notes and runbooks
+├── start-devops.sh                        # Starts the local DevOps stack
+├── stop-devops.sh                         # Stops the local DevOps stack
+├── verify-devops.sh                       # Verification helper
+└── structure.md                           # This file
 ```
+
+Generated build output and provider caches (`target/` and `terraform/.terraform/`) are intentionally omitted.
 
 ## Request and persistence flow
 
