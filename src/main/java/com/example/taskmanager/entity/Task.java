@@ -2,13 +2,14 @@ package com.example.taskmanager.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 
 @Entity
 @Table(name = "tasks")
 public class Task {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
-    @NotBlank private String title;
+    @NotBlank @Size(max = 255) private String title;
     private String description;
     private boolean completed;
     @Column(nullable = false, updatable = false) private Instant createdAt;

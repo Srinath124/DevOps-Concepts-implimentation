@@ -3,4 +3,4 @@ kind: Service
 metadata: { name: task-manager-api }
 spec:
   selector: { app: task-manager-api }
-  ports: [{ port: 80, targetPort: 8080 }]
+  ports: [{ port: 8080, targetPort: 8080 }]

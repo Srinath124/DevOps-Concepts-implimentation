@@ -13,6 +13,6 @@ public class TaskService {
     public List<Task> findAll() { return repository.findAll(); }
     public Task findById(Long id) { return repository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found")); }
     public Task create(Task task) { return repository.save(task); }
-    public Task update(Long id, Task input) { Task task = findById(id); task.setTitle(input.getTitle()); task.setDescription(input.getDescription()); task.setCompleted(input.isCompleted()); return repository.save(task); }
+    public Task update(Long id, Task input) { Task task = findById(id); if (input.getTitle() != null) task.setTitle(input.getTitle()); if (input.getDescription() != null) task.setDescription(input.getDescription()); task.setCompleted(input.isCompleted()); return repository.save(task); }
     public void delete(Long id) { repository.delete(findById(id)); }
 }

@@ -12,7 +12,7 @@ data:
         metrics_path: /actuator/prometheus
         static_configs:
           - targets:
-              - task-manager-api:80
+              - task-manager-api:8080
 
 ---
 apiVersion: apps/v1
