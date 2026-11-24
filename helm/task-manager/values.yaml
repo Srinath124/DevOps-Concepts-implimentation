@@ -3,7 +3,7 @@ frontend:
   image: { repository: task-manager-frontend, tag: latest, pullPolicy: IfNotPresent }
   replicaCount: 2
 replicaCount: 2
-service: { port: 80 }
+service: { port: 8080 }
 resources:
   requests: { cpu: 100m, memory: 256Mi }
   limits: { cpu: 500m, memory: 512Mi }
